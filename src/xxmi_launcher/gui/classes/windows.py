@@ -42,7 +42,7 @@ def limit_scaling(fit_width, fit_height):
     DPI_type = 0  # MDT_EFFECTIVE_DPI = 0, MDT_ANGULAR_DPI = 1, MDT_RAW_DPI = 2
     monitor_handle = windll.user32.MonitorFromPoint(wintypes.POINT(0, 0), 0)
     x_dpi, y_dpi = wintypes.UINT(), wintypes.UINT()
-    windll.shcore.GetDpiForMonitor(monitor_handle, DPI_type, pointer(x_dpi), pointer(y_dpi))
+    #windll.shcore.GetDpiForMonitor(monitor_handle, DPI_type, pointer(x_dpi), pointer(y_dpi))
     scaling_factor = (x_dpi.value + y_dpi.value) / (2 * DPI100pc)
 
     scaling_factor *= ScalingTracker.window_scaling
