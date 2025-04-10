@@ -432,70 +432,72 @@ class Application:
         Config.Active = getattr(Config.Importers, importer_id)
         self.package_manager.load_package(importer_id)
         self.package_manager.notify_package_versions()
-        Config.ConfigSecurity.validate_config()
+        #Config.ConfigSecurity.validate_config()
         Events.Fire(Events.Application.ConfigUpdate())
         # Check for updates
         if update and self.package_manager.get_package(importer_id).installed_version:
             self.run_as_thread(self.package_manager.update_packages, no_install=True, silent=True)
 
     def update_scheduled(self) -> bool:
-        if not self.package_manager.update_available():
-            return False
+        # if not self.package_manager.update_available():
+            # return False
 
-        pending_update_message = []
+        # pending_update_message = []
 
-        for package_name, package in self.package_manager.get_version_notification().package_states.items():
-            # Exclude skipped package updates from the list
-            if package.latest_version == package.skipped_version:
-                continue
-            # Include packages with version different from the latest
-            if package.latest_version != '' and (package.installed_version != package.latest_version):
-                pending_update_message.append(
-                    f'{package_name} update found: {package.installed_version or 'N/A'} -> {package.latest_version}')
+        # for package_name, package in self.package_manager.get_version_notification().package_states.items():
+            # # Exclude skipped package updates from the list
+            # if package.latest_version == package.skipped_version:
+                # continue
+            # # Include packages with version different from the latest
+            # if package.latest_version != '' and (package.installed_version != package.latest_version):
+                # pending_update_message.append(
+                    # f'{package_name} update found: {package.installed_version or 'N/A'} -> {package.latest_version}')
 
-        if len(pending_update_message) == 0:
-            return False
+        # if len(pending_update_message) == 0:
+            # return False
 
-        update_dialogue = Events.Application.ShowDialogue(
-            modal=True,
-            screen_center=not self.gui.is_shown(),
-            lock_master=self.gui.is_shown(),
-            icon='update-icon.ico',
-            title='Update Available',
-            confirm_text='Update',
-            cancel_text='Skip',
-            message='\n'.join(pending_update_message),
-        )
+        # update_dialogue = Events.Application.ShowDialogue(
+            # modal=True,
+            # screen_center=not self.gui.is_shown(),
+            # lock_master=self.gui.is_shown(),
+            # icon='update-icon.ico',
+            # title='Update Available',
+            # confirm_text='Update',
+            # cancel_text='Skip',
+            # message='\n'.join(pending_update_message),
+        # )
 
-        user_requested_update = self.gui.show_messagebox(update_dialogue)
+        # user_requested_update = self.gui.show_messagebox(update_dialogue)
 
-        # Mark updates as skipped if user pressed Skip button, but only if it's not None from Close button
-        if not user_requested_update and user_requested_update is not None:
-            self.package_manager.skip_latest_updates()
+        # # Mark updates as skipped if user pressed Skip button, but only if it's not None from Close button
+        # if not user_requested_update and user_requested_update is not None:
+            # self.package_manager.skip_latest_updates()
 
-        return bool(user_requested_update)
+        # return bool(user_requested_update)
+        return True
 
     def check_for_updates(self, force: bool = True):
-        try:
-            self.package_manager.update_packages(no_install=True, force=force)
-        except Exception as e:
-            if 'failed to detect latest launcher version' in str(e).lower():
-                # Failed to check launcher package GitHub, and since it's the very first check, there's connection error
-                raise e
-            else:
-                # Failed to check some other package, lets give a warning and still try to go further
-                Events.Fire(Events.Application.ShowWarning(
-                    message=str(e),
-                    modal=True
-                ))
-        if self.package_manager.update_available():
-            if self.update_scheduled():
-                self.package_manager.update_packages(no_check=True, force=force)
-        else:
-            Events.Fire(Events.Application.ShowInfo(
-                modal=True,
-                message='No updates available!',
-            ))
+        # try:
+            # self.package_manager.update_packages(no_install=True, force=force)
+        # except Exception as e:
+            # if 'failed to detect latest launcher version' in str(e).lower():
+                # # Failed to check launcher package GitHub, and since it's the very first check, there's connection error
+                # raise e
+            # else:
+                # # Failed to check some other package, lets give a warning and still try to go further
+                # Events.Fire(Events.Application.ShowWarning(
+                    # message=str(e),
+                    # modal=True
+                # ))
+        # if self.package_manager.update_available():
+            # if self.update_scheduled():
+                # self.package_manager.update_packages(no_check=True, force=force)
+        # else:
+            # Events.Fire(Events.Application.ShowInfo(
+                # modal=True,
+                # message='No updates available!',
+            # ))
+        return False
 
     def launch(self):
         if self.is_locked:
