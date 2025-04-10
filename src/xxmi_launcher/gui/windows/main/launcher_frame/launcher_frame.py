@@ -230,26 +230,27 @@ class UpdateButton(MainActionButton):
         self.subscribe(Events.PackageManager.VersionNotification, self.handle_version_notification)
 
     def handle_version_notification(self, event):
-        pending_update_message = []
-        for package_name, package in event.package_states.items():
-            if package.latest_version != '' and (package.installed_version != package.latest_version):
-                pending_update_message.append(
-                    f'* {package_name}: {package.installed_version or 'N/A'} → {package.latest_version}')
-        if len(pending_update_message) > 0:
-            self.enabled = True
-            self.set_tooltip(L('action_update_packages', dedent("""
-                ## Update packages to latest versions:
-                {pending_update_message}
+        # pending_update_message = []
+        # for package_name, package in event.package_states.items():
+            # if package.latest_version != '' and (package.installed_version != package.latest_version):
+                # pending_update_message.append(
+                    # f'* {package_name}: {package.installed_version or 'N/A'} → {package.latest_version}')
+        # if len(pending_update_message) > 0:
+            # self.enabled = True
+            # self.set_tooltip(L('action_update_packages', dedent("""
+                # ## Update packages to latest versions:
+                # {pending_update_message}
                 
-                <font color="#3366ff">*Hover over versions in the bottom-left corner to view update descriptions.*</font>
-            """).format(
-                pending_update_message='\n'.join(pending_update_message)
-            )))
-            self.show(self.stage == Stage.Ready and Config.Launcher.active_importer != 'XXMI')
-        else:
-            self.enabled = False
-            self.set_tooltip('No updates available!')
-            self.hide()
+                # <font color="#3366ff">*Hover over versions in the bottom-left corner to view update descriptions.*</font>
+            # """).format(
+                # pending_update_message='\n'.join(pending_update_message)
+            # )))
+            # self.show(self.stage == Stage.Ready and Config.Launcher.active_importer != 'XXMI')
+        # else:
+            # self.enabled = False
+            # self.set_tooltip('No updates available!')
+            # self.hide()
+        self.enabled = True
 
 
 class StartButton(MainActionButton):
