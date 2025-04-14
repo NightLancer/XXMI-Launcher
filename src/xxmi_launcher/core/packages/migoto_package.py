@@ -252,15 +252,13 @@ class MigotoPackage(Package):
                 if Config.Active.Migoto.unsafe_mode:
                     # Lets deside what to do based on DLL origin
                     with open(deployment_path, 'rb') as f:
-                        # if self.security.verify(deployed_signature, f.read()):
-                            # # DLL matches the signature of last deployed one, it should be safe to update it
-                            # log.debug(f'Deploying updated {deployment_path}...')
-                            # deploy_pending = True
-                        # else:
-                            # # Third-party DLL found, lets leave its management to user
-                            # log.debug(f'Skipped auto-deploy for {deployment_path} (signature mismatch)!')
-                        log.debug(f'Deploying updated {deployment_path}...')
-                        deploy_pending = True
+                        if self.security.verify(deployed_signature, f.read()):
+                            # DLL matches the signature of last deployed one, it should be safe to update it
+                            log.debug(f'Deploying updated {deployment_path}...')
+                            deploy_pending = True
+                        else:
+                            # Third-party DLL found, lets leave its management to user
+                            log.debug(f'Skipped auto-deploy for {deployment_path} (signature mismatch)!')
                 else:
                     # We should never reach this point unless the config is desynced (and if it is, lets redeploy)
                     log.debug(f'Re-deploying updated {deployment_path}...')

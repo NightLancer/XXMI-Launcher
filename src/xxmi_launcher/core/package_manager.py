@@ -16,7 +16,7 @@ import core.event_manager as Events
 import core.path_manager as Paths
 import core.config_manager as Config
 
-#from core.utils.security import Security
+from core.utils.security import Security
 from core.utils.github_client import GitHubClient
 
 log = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ class Package:
         self.asset_version_pattern = re.compile(self.metadata.asset_version_pattern)
         self.signature_pattern = re.compile(self.metadata.signature_pattern, re.MULTILINE)
 
-        self.security = True #Security(public_key=self.metadata.signature_public_key)
+        self.security = Security(public_key=self.metadata.signature_public_key)
 
         self.manager: Optional[PackageManager] = None
         self.active = False
@@ -146,9 +146,9 @@ class Package:
 
         Events.Fire(Events.PackageManager.StartIntegrityVerification(asset_name='downloaded data'))
 
-        #if not self.security.verify(self.signature, data):
-        #    raise ValueError(f'Downloaded data integrity verification failed!\n'
-        #                     'Please restart the launcher and try again!')
+        if not self.security.verify(self.signature, data):
+           raise ValueError(f'Downloaded data integrity verification failed!\n'
+                            'Please restart the launcher and try again!')
 
         Events.Fire(Events.PackageManager.StartFileWrite(asset_name=asset_path.name))
 
@@ -157,10 +157,10 @@ class Package:
 
         Events.Fire(Events.PackageManager.StartIntegrityVerification(asset_name=asset_path.name))
 
-        # with open(asset_path, 'rb') as f:
-            # if not self.security.verify(self.signature, f.read()):
-                # raise ValueError(f'{asset_path.name} data integrity verification failed!\n'
-                                 # 'Please restart the launcher and try again!')
+        with open(asset_path, 'rb') as f:
+            if not self.security.verify(self.signature, f.read()):
+                raise ValueError(f'{asset_path.name} data integrity verification failed!\n'
+                                 'Please restart the launcher and try again!')
 
         return asset_path
 
@@ -222,10 +222,10 @@ class Package:
         if not file_path.exists():
             raise ValueError(f'{self.metadata.package_name} package is missing critical file: {file_path.name}!\n')
         with open(file_path, 'rb') as f:
-            #if self.security.verify(self.get_signature(file_path), f.read()):
-            return True
-            #else:
-            #    raise ValueError(f'File {file_path.name} signature is invalid!')
+            if self.security.verify(self.get_signature(file_path), f.read()):
+                return True
+            else:
+               raise ValueError(f'File {file_path.name} signature is invalid!')
 
     def get_signature(self, file_path: Path):
         if self.manifest is None:

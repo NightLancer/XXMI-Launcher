@@ -17,3 +17,4 @@ __pycache__/
 /XXMI-Launcher Log.txt
 /XXMI Launcher Log.txt
 /fps_config.json
+*.lnk

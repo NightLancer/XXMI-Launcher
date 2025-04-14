@@ -11,7 +11,7 @@ from dacite import from_dict
 import core.path_manager as Paths
 import core.event_manager as Events
 
-#from core.utils.security import Security
+from core.utils.security import Security
 from core import package_manager
 from core.packages import launcher_package
 from core.packages.model_importers import gimi_package
@@ -213,31 +213,28 @@ class AppConfig:
 
 class AppConfigSecurity:
     def __init__(self):
-        #self.security = None
-        pass
+        self.security = None
 
     def load(self, save_config: bool = True):
         global Config
 
 
-        # self.security = Security()
+        self.security = Security()
 
-        # keys_path = Paths.App.Resources / 'Security'
-        # Paths.verify_path(keys_path)
-        # try:
-            # self.security.read_key_pair(Paths.App.Resources / keys_path)
-        # except Exception as e:
-            # pass
+        keys_path = Paths.App.Resources / 'Security'
+        Paths.verify_path(keys_path)
+        try:
+            self.security.read_key_pair(Paths.App.Resources / keys_path)
+        except Exception as e:
+            pass
 
-        # if self.security.public_key is None or not self.security.verify(Config.Security.user_signature,
-                                                                        # os.getlogin().encode()):
-            # self.security.generate_key_pair()
-            # self.security.write_key_pair(keys_path)
-            # Config.Security.user_signature = self.security.sign(os.getlogin())
-            # if save_config:
-                # Config.save()
-        if save_config:
-            Config.save()
+        if self.security.public_key is None or not self.security.verify(Config.Security.user_signature,
+                                                                        os.getlogin().encode()):
+            self.security.generate_key_pair()
+            self.security.write_key_pair(keys_path)
+            Config.Security.user_signature = self.security.sign(os.getlogin())
+            if save_config:
+                Config.save()
 
     def validate_config(self):
         global Config
