@@ -494,6 +494,8 @@ class PackageManager:
 
         try:
             for package_name, package in self.packages.items():
+                #print(f'package_name: {package_name}')
+                if package_name == "Launcher": continue
 
                 # Skip package processing if it's not active, intended for multiple model importers support
                 if not package.active:
