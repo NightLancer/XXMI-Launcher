@@ -147,8 +147,8 @@ class Package:
         Events.Fire(Events.PackageManager.StartIntegrityVerification(asset_name='downloaded data'))
 
         if not self.security.verify(self.signature, data):
-           raise ValueError(f'Downloaded data integrity verification failed!\n'
-                            'Please restart the launcher and try again!')
+            raise ValueError(f'Downloaded data integrity verification failed!\n'
+                             'Please restart the launcher and try again!')
 
         Events.Fire(Events.PackageManager.StartFileWrite(asset_name=asset_path.name))
 
@@ -225,7 +225,7 @@ class Package:
             if self.security.verify(self.get_signature(file_path), f.read()):
                 return True
             else:
-               raise ValueError(f'File {file_path.name} signature is invalid!')
+                raise ValueError(f'File {file_path.name} signature is invalid!')
 
     def get_signature(self, file_path: Path):
         if self.manifest is None:

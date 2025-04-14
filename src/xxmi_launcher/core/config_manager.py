@@ -218,7 +218,6 @@ class AppConfigSecurity:
     def load(self, save_config: bool = True):
         global Config
 
-
         self.security = Security()
 
         keys_path = Paths.App.Resources / 'Security'
