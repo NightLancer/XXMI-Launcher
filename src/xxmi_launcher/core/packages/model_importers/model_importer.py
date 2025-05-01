@@ -538,9 +538,9 @@ class ModelImporterPackage(Package):
     def create_shortcut(self):
         pythoncom.CoInitialize()
         with winshell.shortcut(str(Path(winshell.desktop()) / f'{Config.Launcher.active_importer} Quick Start.lnk')) as link:
-            link.path = str(Path(sys.executable))
+            link.path = str(Path(sys.argv[0]).resolve()) #py
             link.description = f'Start game with {Config.Launcher.active_importer} and skip launcher load'
-            link.working_directory = str(Paths.App.Resources / 'Bin')
+            link.working_directory = str(Path(link.path).parent)
             link.arguments = f'--nogui --xxmi {Config.Launcher.active_importer}'
             link.icon_location = (str(Config.Config.theme_path / 'Shortcuts' / f'{Config.Launcher.active_importer}.ico'), 0)
         Config.Active.Importer.shortcut_deployed = True
