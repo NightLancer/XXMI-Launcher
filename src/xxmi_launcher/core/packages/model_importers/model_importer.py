@@ -615,6 +615,7 @@ class ModelImporterPackage(Package):
             time.sleep(0.001)
 
     def validate_mods_folder(self):
+        return True #don't need this
         log.debug(f'Searching for invalid folders...')
         mods_path = Config.Active.Importer.importer_path / 'Mods'
 
