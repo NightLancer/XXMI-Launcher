@@ -136,15 +136,26 @@ class WWMIPackage(ModelImporterPackage):
         except Exception as e:
             return ''
 
-    def normalize_game_path(self, path: Path) -> Path:
-        if path.name != 'Wuthering Waves Game':
-            # Go up three levels if specified folder is game exe folder
-            if path.name == 'Win64':
-                path = path.parent.parent.parent
-            elif 'Wuthering Waves Game' in [x.name for x in path.iterdir() if x.is_dir()]:
-                # Go down one level if specified folder is official launcher folder
-                path = path / 'Wuthering Waves Game'
-        return path
+    def normalize_game_path(self, game_path: Path) -> Path:
+        if not game_path.is_absolute():
+            raise ValueError(f'Failed to normalize path {game_path}: Path is not absolute!')
+
+        if (game_path / 'Wuthering Waves.exe').is_file():
+            return game_path
+
+        game_path_original = game_path
+
+        for path in self.scan_directory(game_path):
+            if path.is_file() and path.name == 'Wuthering Waves.exe':
+                return Path(path).parent
+
+        for i in range(len(game_path.parents)):
+            game_path = game_path.parent
+            for path in game_path.iterdir():
+                if path.is_file() and path.name == 'Wuthering Waves.exe':
+                    return Path(path).parent
+
+        raise ValueError(f'Failed to normalize path {game_path_original}: Wuthering Waves.exe not found!')
 
     def autodetect_game_folders(self) -> List[Path]:
         paths = self.reg_search_game_folders(['Client-Win64-Shipping.exe'])
@@ -163,7 +174,15 @@ class WWMIPackage(ModelImporterPackage):
                 except:
                     continue
 
-        return [self.normalize_game_path(path) for path in paths]
+        result = []
+
+        for path in paths:
+            try:
+                result.append(self.normalize_game_path(path))
+            except:
+                pass
+
+        return result
 
     def validate_game_path(self, game_folder):
         Events.Fire(Events.Application.StatusUpdate(status='Validating game path...'))
@@ -173,6 +192,21 @@ class WWMIPackage(ModelImporterPackage):
         exe_path = game_path / 'Wuthering Waves.exe'
         if not exe_path.is_file():
             raise ValueError(f'Game folder must contain `Wuthering Waves.exe` and `Client` & `Engine` folders!')
+        else:
+            common_folder = self.get_parent_directory(game_path, 'common')
+            if common_folder is not None and common_folder.parent.name == 'steamapps':
+                # Steam installation detected
+                if game_path.parent.name != 'common':
+                    # Invalid file structure, most likely caused by manual folder relocation
+                    Events.Fire(Events.Application.ShowError(
+                        modal=True,
+                        confirm_text='Ok',
+                        message=f'Invalid Wuthering Waves installation detected for Steam:\n'
+                                f'{game_path}\n\n'
+                                f'{game_path.name} folder with {exe_path.name} must be directly placed in:\n{common_folder}\n\n'
+                                f'Please run game file repair via Steam or fix it manually.'
+                    ))
+                    raise ValueError(f'Game installation must be repaired via Steam!')
         for dir_name in ['Client', 'Engine']:
             if dir_name not in [x.name for x in game_path.iterdir() if x.is_dir()]:
                 raise ValueError(f'Game folder must contain {dir_name} folder!')
@@ -181,7 +215,7 @@ class WWMIPackage(ModelImporterPackage):
     def validate_game_exe_path(self, game_path: Path) -> Path:
         game_exe_path = game_path / 'Client' / 'Binaries' / 'Win64' / 'Client-Win64-Shipping.exe'
         if not game_exe_path.is_file():
-            raise ValueError(f'Game executable {game_exe_path} not found!')
+            raise ValueError(f'Game executable {game_exe_path.name} not found!')
         return game_exe_path
 
     def get_start_cmd(self, game_path: Path) -> Tuple[Path, List[str], Optional[str]]:
@@ -280,6 +314,11 @@ class WWMIPackage(ModelImporterPackage):
         Events.Fire(Events.Application.VerifyFileAccess(path=engine_ini_path, write=True))
         with open(engine_ini_path, 'r', encoding='utf-8') as f:
             ini = IniHandler(IniHandlerSettings(option_value_spacing=False, inline_comments=True, add_section_spacing=True), f)
+
+        if '/Script/Engine.RendererRTXSettings' in Config.Active.Importer.engine_ini.keys():
+            if ini.get_section('/Script/Engine.RendererRTXSettings') is not None:
+                ini.remove_section('/Script/Engine.RendererRTXSettings')
+            del Config.Active.Importer.engine_ini['/Script/Engine.RendererRTXSettings']
 
         for section_name, section_data in Config.Importers.WWMI.Importer.engine_ini.items():
             for option_name, option_value in section_data.items():

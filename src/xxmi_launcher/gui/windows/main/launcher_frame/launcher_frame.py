@@ -231,8 +231,12 @@ class UpdateButton(MainActionButton):
 
     def handle_version_notification(self, event):
         pending_update_message = []
+
         for package_name, package in event.package_states.items():
             if package_name == "Launcher": continue
+            if package_name == Config.Launcher.active_importer and not package.installed_version:
+                pending_update_message = []
+                break            
             if package.latest_version != '' and (package.installed_version != package.latest_version):
                 pending_update_message.append(
                     f'* {package_name}: {package.installed_version or "N/A"} → {package.latest_version}')
