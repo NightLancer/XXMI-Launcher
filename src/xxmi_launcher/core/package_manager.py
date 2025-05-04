@@ -79,6 +79,7 @@ class Package:
         self.download_url: str = ''
         self.signature: Union[str, None] = None
         self.manifest = None
+        self.manifest_url: Optional[str] = None
         self.download_in_progress = False
 
         self.package_path = Paths.App.Resources / 'Packages' / self.metadata.package_name
@@ -95,18 +96,19 @@ class Package:
             self.installed_version = ''
             raise ValueError(f'Failed to detect installed {self.metadata.package_name} version:\n\n{e}') from e
 
-    def get_latest_version(self) -> Tuple[str, str, Union[str, None], str]:
-        version, url, signature, release_notes = self.manager.github_client.fetch_latest_release(
+    def get_latest_version(self) -> Tuple[str, str, Union[str, None], str, str]:
+        version, url, signature, release_notes, manifest_url = self.manager.github_client.fetch_latest_release(
             repo_owner=self.metadata.github_repo_owner,
             repo_name=self.metadata.github_repo_name,
             asset_version_pattern=self.asset_version_pattern,
             asset_name_format=self.metadata.asset_name_format,
-            signature_pattern=self.signature_pattern)
-        return version, url, signature, release_notes
+            signature_pattern=self.signature_pattern,
+            pre_release=Config.Launcher.pre_release)
+        return version, url, signature, release_notes, manifest_url
 
     def detect_latest_version(self):
         try:
-            self.cfg.latest_version, self.download_url, self.signature, self.cfg.latest_release_notes = self.get_latest_version()
+            self.cfg.latest_version, self.download_url, self.signature, self.cfg.latest_release_notes, self.manifest_url = self.get_latest_version()
         except ConnectionRefusedError as e:
             raise e
         except Exception as e:
@@ -126,9 +128,19 @@ class Package:
             block_size=128*1024,
             update_progress_callback=self.notify_download_progress
         )
+
+        if self.manifest_url is None:
+            manifest_data = None
+        else:
+            manifest_data = self.manager.github_client.download_data(
+                self.manifest_url,
+                block_size=128,
+                update_progress_callback=self.notify_download_progress
+            )
+
         self.download_in_progress = False
 
-        return asset_file_name, data
+        return asset_file_name, data, manifest_data
 
     def notify_download_progress(self, downloaded_bytes, total_bytes):
         if not self.download_in_progress:
@@ -167,7 +179,7 @@ class Package:
     def download_latest_version(self):
         self.downloaded_asset_path = None
 
-        asset_file_name, data = self.download_latest_version_data()
+        asset_file_name, data, manifest_data = self.download_latest_version_data()
 
         Events.Fire(Events.Application.Busy())
 
@@ -189,10 +201,17 @@ class Package:
             self.downloaded_asset_path = asset_path
 
         manifest_path = tmp_path / f'Manifest.json'
-        if not manifest_path.is_file():
-            self.write_manifest(asset_path, self.cfg.latest_version, self.signature)
-        else:
+
+        if manifest_data is not None:
+            # Use manifest from repo
+            with open(self.package_path / f'Manifest.json', 'wb') as f:
+                f.write(manifest_data)
+        elif manifest_path.is_file():
+            # Use manifest from zip
             self.move(manifest_path, self.package_path / manifest_path.name)
+        else:
+            # Make new manifest
+            self.write_manifest(asset_path, self.cfg.latest_version, self.signature)
 
     def install_latest_version(self, clean):
         raise NotImplementedError(f'Method "install_latest_version" is not implemented for package {self.metadata.package_name}!')
@@ -270,6 +289,19 @@ class Package:
                 self.move_contents(src_path, destination_path / src_path.name)
         time.sleep(0.001)
         shutil.rmtree(source_path)
+
+    def scan_directory(self, root_dir):
+        for entry in os.scandir(root_dir):
+            if entry.is_dir():
+                yield from self.scan_directory(entry.path)
+            yield entry
+
+    def get_parent_directory(self, path, folder_name):
+        parts = list(path.parts)
+        for i in reversed(range(len(parts))):
+            if parts[i] == folder_name:
+                return Path(*parts[:i + 1])
+        return None
 
     def get_file_version(self, file_path, max_parts=4):
         version_info = GetFileVersionInfo(str(file_path), "\\")
@@ -449,7 +481,7 @@ class PackageManager:
             package_states={
                 package.metadata.package_name: PackageState(
                     installed_version=package.installed_version,
-                    latest_version=package.cfg.latest_version,
+                    latest_version=package.cfg.latest_version if package.update_available() else package.installed_version,
                     skipped_version=package.cfg.skipped_version,
                 ) for package in self.packages.values() if package.active
             },

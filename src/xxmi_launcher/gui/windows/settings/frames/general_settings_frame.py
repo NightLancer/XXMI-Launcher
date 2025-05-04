@@ -9,6 +9,7 @@ import core.event_manager as Events
 import core.config_manager as Config
 import core.path_manager as Paths
 import gui.vars as Vars
+from core.application import Application
 
 from gui.classes.containers import UIFrame
 from gui.classes.widgets import UILabel, UIButton, UIEntry, UICheckbox,  UIOptionMenu
@@ -25,7 +26,8 @@ class GeneralSettingsFrame(UIFrame):
 
         # Game Folder
         self.put(GameFolderLabel(self)).grid(row=0, column=0, padx=(20, 0), pady=(0, 30), sticky='w')
-        self.put(GameFolderFrame(self)).grid(row=0, column=1, padx=(0, 20), pady=(0, 30), sticky='new', columnspan=3)
+        self.put(GameFolderFrame(self)).grid(row=0, column=1, padx=(0, 65), pady=(0, 30), sticky='new', columnspan=3)
+        self.put(DetectGameFolderButton(self)).grid(row=0, column=1, padx=(0, 20), pady=(0, 30), sticky='e', columnspan=3)
 
         # Launch Options
         self.put(LaunchOptionsLabel(self)).grid(row=1, column=0, padx=(20, 0), pady=(0, 30), sticky='w')
@@ -130,7 +132,7 @@ class GameFolderEntry(UIEntry):
 
     def validate_game_folder(self, game_folder):
         try:
-            game_path = Events.Call(Events.ModelImporter.ValidateGameFolder(game_folder=game_folder))
+            game_path = Events.Call(Events.ModelImporter.ValidateGameFolder(game_folder=game_folder.strip()))
         except Exception as e:
             self.error_label.configure(text=str(e))
             self.error_label.grid(row=0, column=1, padx=(0, 15), pady=(36, 0), sticky='nwe')
@@ -188,6 +190,27 @@ class ChangeGameFolderButton(UIButton):
         if game_folder == '':
             return
         Vars.Active.Importer.game_folder.set(game_folder)
+
+
+class DetectGameFolderButton(UIButton):
+    def __init__(self, master):
+        super().__init__(
+            text='⟳',
+            command=self.detect_game_folder,
+            width = 36,
+            height=36,
+            font=('Asap', 18),
+            master=master)
+
+        self.set_tooltip('Try to automatically detect existing installation folders.')
+
+    def detect_game_folder(self):
+        try:
+            game_folder, game_path, game_exe_path = Events.Call(Events.ModelImporter.DetectGameFolder())
+            Vars.Active.Importer.game_folder.set(str(game_path))
+            Config.Active.Importer.game_folder = str(game_path)
+        except:
+            pass
 
 
 class LaunchOptionsButton(UIButton):
@@ -344,12 +367,8 @@ class OpenEngineIniButton(UIButton):
         self.set_tooltip(f'Open Engine.ini in default text editor file for manual tweaking.')
 
     def open_engine_ini(self):
-        game_folder_path = Path(Vars.Active.Importer.game_folder.get())
-        if 'Wuthering Waves Game' not in str(game_folder_path):
-            game_folder_path = game_folder_path / 'Wuthering Waves Game'
-        if not game_folder_path.is_dir():
-            raise ValueError(f'Game folder does not exist: "{game_folder_path}"!')
-        engine_ini = game_folder_path / 'Client' / 'Saved' / 'Config' / 'WindowsNoEditor' / 'Engine.ini'
+        game_folder = Events.Call(Events.ModelImporter.ValidateGameFolder(Config.Active.Importer.game_folder))
+        engine_ini = game_folder / 'Client' / 'Saved' / 'Config' / 'WindowsNoEditor' / 'Engine.ini'
         if engine_ini.is_file():
             subprocess.Popen([f'{str(engine_ini)}'], shell=True)
         else:

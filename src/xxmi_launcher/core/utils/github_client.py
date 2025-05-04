@@ -37,7 +37,7 @@ class GitHubClient:
             self.proxy_manager.configure(proxy_config)
 
     def fetch_latest_release(self, repo_owner, repo_name,
-                             asset_version_pattern, asset_name_format, signature_pattern=None):
+                             asset_version_pattern, asset_name_format, signature_pattern=None, pre_release=False):
         headers = {}
 
         if self.access_token:
@@ -45,7 +45,7 @@ class GitHubClient:
 
         try:
             response = requests.get(
-                url=f'https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest',
+                url=f'https://api.github.com/repos/{repo_owner}/{repo_name}/releases{"/latest" if not pre_release else ""}',
                 headers=headers,
                 proxies=self.proxy_manager.proxies,
                 timeout=10,
@@ -58,18 +58,21 @@ class GitHubClient:
             raise ValueError(f'Failed to establish HTTPS connection to GitHub!\n\n'
                              f'Please check your Antivirus, Firewall, Proxy and VPN settings.') from e
 
-        message, status = response.get('message', None), response.get('status', 0)
+        if not isinstance(response, list):
+            message, status = response.get('message', None), response.get('status', 0)
 
-        if message is not None:
-            message = message.lower()
-            status = int(status)
-            if 'rate limit' in message:
-                raise ConnectionRefusedError('GitHub API rate limit exceeded!')
-            elif 'bad credentials' in message or status == 401:
-                raise ConnectionError('GitHub Personal Access Token is invalid!\n\n'
-                                      'Please configure correct token in launcher settings.')
+            if message is not None:
+                message = message.lower()
+                status = int(status)
+                if 'rate limit' in message:
+                    raise ConnectionRefusedError('GitHub API rate limit exceeded!')
+                elif 'bad credentials' in message or status == 401:
+                    raise ConnectionError('GitHub Personal Access Token is invalid!\n\n'
+                                          'Please configure correct token in launcher settings.')
 
         try:
+            if isinstance(response, list):
+                response = response[0]
             response = from_dict(data_class=ResponseRelease, data=response)
         except Exception as e:
             raise ValueError(f'Failed to parse GitHub response!') from e
@@ -87,12 +90,20 @@ class GitHubClient:
                 raise ValueError('Failed to parse signature!')
             signature = result[0]
 
+        release_notes = self.parse_release_notes(response.body)
+
+        asset_download_url, manifest_download_url = None, None
+
         for asset in response.assets:
             if asset.name == asset_name_format % version:
-                release_notes = self.parse_release_notes(response.body)
-                return version, asset.browser_download_url, signature, release_notes
+                asset_download_url = asset.browser_download_url
+            elif asset.name == 'Manifest.json':
+                manifest_download_url = asset.browser_download_url
 
-        raise ValueError(f"Failed to locate asset matching to '{asset_name_format}'!")
+        if asset_download_url is None:
+            raise ValueError(f"Failed to locate asset matching to '{asset_name_format}'!")
+
+        return version, asset_download_url, signature, release_notes, manifest_download_url
 
     def download_data(self, url, block_size=4096, update_progress_callback=None):
         headers = {}
